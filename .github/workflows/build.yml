@@ -11,13 +11,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create Xcode project
+        run: |
+          mkdir -p CLDiagnostic.xcodeproj
+
+          cat > project.yml <<'EOF'
+          name: CLDiagnostic
+
+          options:
+            deploymentTarget:
+              iOS: "17.0"
+
+          targets:
+            CLDiagnostic:
+              type: application
+              platform: iOS
+              sources:
+                - CLDiagnostic.swift
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.borja.CLDiagnostic
+                  INFOPLIST_KEY_NSMicrophoneUsageDescription: ""
+                  INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Esta aplicación necesita tu ubicación para diagnosticar Core Location."
+                  CODE_SIGNING_ALLOWED: NO
+                  CODE_SIGNING_REQUIRED: NO
+          EOF
+
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          brew install xcodegen
 
-      - name: Generate Xcode project
-        run: xcodegen generate
+      - name: Generate project
+        run: |
+          xcodegen generate
 
-      - name: Build unsigned app
+      - name: Build
         run: |
           xcodebuild \
             -project CLDiagnostic.xcodeproj \
@@ -26,11 +54,12 @@ jobs:
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-      - name: Package IPA
+      - name: Create IPA
         run: |
-          mkdir -p Payload
+          mkdir Payload
           cp -R build/Build/Products/Release-iphoneos/CLDiagnostic.app Payload/
           zip -r CLDiagnostic.ipa Payload
 
