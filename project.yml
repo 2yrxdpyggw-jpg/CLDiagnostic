@@ -1,7 +1,6 @@
 name: CLDiagnostic
 
 options:
-  bundleIdPrefix: com.borja
   deploymentTarget:
     iOS: "17.0"
 
@@ -11,13 +10,15 @@ targets:
     platform: iOS
     sources:
       - CLDiagnostic.swift
+
+    info:
+      path: Info.plist
+
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.borja.CLDiagnostic
-        SWIFT_VERSION: 5.9
+        SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
-        INFOPLIST_KEY_NSCameraUsageDescription: ""
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Esta aplicación necesita tu ubicación para diagnosticar Core Location."
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: ""
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
