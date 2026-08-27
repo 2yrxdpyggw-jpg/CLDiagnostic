@@ -11,10 +11,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create Xcode project
+      - name: Install XcodeGen
         run: |
-          mkdir -p CLDiagnostic.xcodeproj
+          brew untap aws/tap || true
+          brew install xcodegen
 
+      - name: Create project
+        run: |
           cat > project.yml <<'EOF'
           name: CLDiagnostic
 
@@ -31,19 +34,22 @@ jobs:
               settings:
                 base:
                   PRODUCT_BUNDLE_IDENTIFIER: com.borja.CLDiagnostic
-                  INFOPLIST_KEY_NSMicrophoneUsageDescription: ""
-                  INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Esta aplicación necesita tu ubicación para diagnosticar Core Location."
+                  SWIFT_VERSION: "5.0"
+                  TARGETED_DEVICE_FAMILY: "1"
+                  INFOPLIST_FILE: Info.plist
+                  GENERATE_INFOPLIST_FILE: NO
                   CODE_SIGNING_ALLOWED: NO
                   CODE_SIGNING_REQUIRED: NO
+                  CODE_SIGN_IDENTITY: ""
           EOF
 
-      - name: Install XcodeGen
-        run: |
-          brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
 
-      - name: Generate project
+      - name: Verify project
         run: |
-          xcodegen generate
+          grep -R "INFOPLIST_FILE" CLDiagnostic.xcodeproj/project.pbxproj
+          test -f Info.plist
 
       - name: Build
         run: |
@@ -59,8 +65,8 @@ jobs:
 
       - name: Create IPA
         run: |
-          mkdir Payload
-          cp -R build/Build/Products/Release-iphoneos/CLDiagnostic.app Payload/
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/CLDiagnostic.app Payload/CLDiagnostic.app
           zip -r CLDiagnostic.ipa Payload
 
       - name: Upload IPA
