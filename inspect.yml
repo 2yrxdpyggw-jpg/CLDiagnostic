@@ -1,0 +1,42 @@
+name: Inspect CLDiagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate app
+        run: |
+          find . -name "CLDiagnostic.app" -print
+
+      - name: Inspect files
+        run: |
+          APP=$(find . -name "CLDiagnostic.app" -type d | head -1)
+
+          if [ -z "$APP" ]; then
+            echo "No se encontró CLDiagnostic.app"
+            exit 1
+          fi
+
+          echo "APP=$APP"
+
+          echo "===== FILES ====="
+          find "$APP" -maxdepth 2 -type f -print
+
+          echo "===== EXECUTABLE ====="
+          file "$APP/CLDiagnostic"
+
+          echo "===== INFO.PLIST ====="
+          plutil -p "$APP/Info.plist"
+
+          echo "===== MACH-O ====="
+          otool -hv "$APP/CLDiagnostic"
+
+          echo "===== LOAD COMMANDS ====="
+          otool -l "$APP/CLDiagnostic" | head -100
