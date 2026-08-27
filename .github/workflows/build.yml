@@ -8,16 +8,17 @@ jobs:
     runs-on: macos-15
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen
+      - name: Create Xcode project
+        shell: bash
         run: |
-          brew untap aws/tap || true
-          brew install xcodegen
+          set -e
 
-      - name: Create project
-        run: |
+          mkdir -p CLDiagnostic.xcodeproj
+
           cat > project.yml <<'EOF'
           name: CLDiagnostic
 
@@ -31,27 +32,37 @@ jobs:
               platform: iOS
               sources:
                 - CLDiagnostic.swift
+
               settings:
                 base:
                   PRODUCT_BUNDLE_IDENTIFIER: com.borja.CLDiagnostic
+                  PRODUCT_NAME: CLDiagnostic
                   SWIFT_VERSION: "5.0"
+                  IPHONEOS_DEPLOYMENT_TARGET: "17.0"
                   TARGETED_DEVICE_FAMILY: "1"
-                  INFOPLIST_FILE: Info.plist
-                  GENERATE_INFOPLIST_FILE: NO
+                  GENERATE_INFOPLIST_FILE: YES
+                  INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Necesitamos tu ubicación para diagnosticar Core Location."
                   CODE_SIGNING_ALLOWED: NO
                   CODE_SIGNING_REQUIRED: NO
                   CODE_SIGN_IDENTITY: ""
           EOF
 
+      - name: Install XcodeGen
+        run: |
+          brew untap aws/tap || true
+          brew install xcodegen
+
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
 
       - name: Verify project
         run: |
-          grep -R "INFOPLIST_FILE" CLDiagnostic.xcodeproj/project.pbxproj
-          test -f Info.plist
+          test -f CLDiagnostic.xcodeproj/project.pbxproj
+          grep -q "GENERATE_INFOPLIST_FILE" CLDiagnostic.xcodeproj/project.pbxproj
+          echo "Xcode project OK"
 
-      - name: Build
+      - name: Build iOS app
         run: |
           xcodebuild \
             -project CLDiagnostic.xcodeproj \
@@ -61,16 +72,46 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Verify application bundle
+        run: |
+          APP="build/Build/Products/Release-iphoneos/CLDiagnostic.app"
+
+          test -d "$APP"
+          test -f "$APP/CLDiagnostic"
+          test -f "$APP/Info.plist"
+
+          echo "===== APP ====="
+          file "$APP/CLDiagnostic"
+
+          echo "===== INFO ====="
+          plutil -p "$APP/Info.plist"
+
+          echo "===== BUNDLE ====="
+          ls -la "$APP"
 
       - name: Create IPA
         run: |
-          mkdir -p Payload
-          cp -R build/Build/Products/Release-iphoneos/CLDiagnostic.app Payload/CLDiagnostic.app
-          zip -r CLDiagnostic.ipa Payload
+          rm -rf Payload
+          mkdir Payload
+
+          cp -R \
+            build/Build/Products/Release-iphoneos/CLDiagnostic.app \
+            Payload/CLDiagnostic.app
+
+          rm -f CLDiagnostic.ipa
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            Payload CLDiagnostic.ipa
+
+          echo "IPA created:"
+          ls -lh CLDiagnostic.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: CLDiagnostic-IPA
           path: CLDiagnostic.ipa
+          if-no-files-found: error
